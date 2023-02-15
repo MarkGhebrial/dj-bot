@@ -11,8 +11,28 @@ use serenity::{
 };
 
 #[group]
-#[commands(deafen, join, leave, mute, play, undeafen, unmute)]
+#[commands(deafen, help, join, leave, mute, play, undeafen, unmute)]
 struct General;
+
+#[command]
+#[only_in(guilds)]
+async fn help(ctx: &Context, msg: &Message) -> CommandResult {
+    check_msg(
+        msg.channel_id
+            .say(
+                ctx,
+                r"Prefix is `Powers`, `powers`, `pow`, or `POW`
+Commands:
+  `help`: Display this message
+  `join`: Join the voice channel that you are in
+  `play <url>`: Play a youtube video in voice
+  `leave`: Leave voice",
+            )
+            .await,
+    );
+
+    Ok(())
+}
 
 #[command]
 #[only_in(guilds)]
