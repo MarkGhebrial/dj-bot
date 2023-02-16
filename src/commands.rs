@@ -1,7 +1,3 @@
-use std::collections::HashMap;
-use std::ops::Deref;
-use std::sync::Mutex;
-
 // Import the `Context` to handle commands.
 use serenity::client::Context;
 
@@ -14,12 +10,8 @@ use serenity::{
     Result as SerenityResult,
 };
 
-use songbird::id::GuildId;
-use songbird::tracks::{PlayMode, TrackQueue};
-use songbird::driver::Driver;
-
 #[group]
-#[commands(deafen, help, join, leave, mute, play, undeafen, unmute)]
+#[commands(help, join, leave, mute, play, unmute, queue)]
 struct General;
 
 #[command]
@@ -33,50 +25,14 @@ async fn help(ctx: &Context, msg: &Message) -> CommandResult {
 Commands:
   `help`: Display this message
   `join`: Join the voice channel that you are in
-  `play <url>`: Play a youtube video in voice
-  `leave`: Leave voice",
+  `play <url>`: Add a youtube video to the queue
+  `[q]ueue`: Print the songs in the queue
+  `leave`: Leave voice
+  `mute`: Mute the bot
+  `unmute`: Unmute the bot",
             )
             .await,
     );
-
-    Ok(())
-}
-
-#[command]
-#[only_in(guilds)]
-async fn deafen(ctx: &Context, msg: &Message) -> CommandResult {
-    let guild = msg.guild(&ctx.cache).unwrap();
-    let guild_id = guild.id;
-
-    let manager = songbird::get(ctx)
-        .await
-        .expect("Songbird Voice client placed in at initialisation.")
-        .clone();
-
-    let handler_lock = match manager.get(guild_id) {
-        Some(handler) => handler,
-        None => {
-            check_msg(msg.reply(ctx, "Not in a voice channel").await);
-
-            return Ok(());
-        }
-    };
-
-    let mut handler = handler_lock.lock().await;
-
-    if handler.is_deaf() {
-        check_msg(msg.channel_id.say(&ctx.http, "Already deafened").await);
-    } else {
-        if let Err(e) = handler.deafen(true).await {
-            check_msg(
-                msg.channel_id
-                    .say(&ctx.http, format!("Failed: {:?}", e))
-                    .await,
-            );
-        }
-
-        check_msg(msg.channel_id.say(&ctx.http, "Deafened").await);
-    }
 
     Ok(())
 }
@@ -254,7 +210,8 @@ async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 
 #[command]
 #[only_in(guilds)]
-async fn undeafen(ctx: &Context, msg: &Message) -> CommandResult {
+#[aliases(q)]
+async fn queue(ctx: &Context, msg: &Message) -> CommandResult {
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;
 
@@ -265,19 +222,34 @@ async fn undeafen(ctx: &Context, msg: &Message) -> CommandResult {
 
     if let Some(handler_lock) = manager.get(guild_id) {
         let mut handler = handler_lock.lock().await;
-        if let Err(e) = handler.deafen(false).await {
-            check_msg(
-                msg.channel_id
-                    .say(&ctx.http, format!("Failed: {:?}", e))
-                    .await,
-            );
+        
+        let q = handler.queue().current_queue();
+        
+        let mut message = "".to_owned();
+
+        if q.is_empty() {
+            message += "No songs in queue";
+        } else {
+            for (i, song) in q.iter().enumerate() {
+                let song_name = match &song.metadata().title {
+                    None => "Unnamed Song".to_owned(),
+                    Some(t) => t.to_owned(),
+                };
+
+                message.push_str(&format!("{}. {}", i + 1, song_name));
+
+                // Add a newline if it's not the last song
+                if i != q.len() - 1 {
+                    message.push('\n');
+                }
+            }
         }
 
-        check_msg(msg.channel_id.say(&ctx.http, "Undeafened").await);
+        check_msg(msg.channel_id.say(&ctx.http, message).await);
     } else {
         check_msg(
             msg.channel_id
-                .say(&ctx.http, "Not in a voice channel to undeafen in")
+                .say(&ctx.http, "Not in a voice channel")
                 .await,
         );
     }
