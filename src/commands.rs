@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+use std::ops::Deref;
+use std::sync::Mutex;
+
 // Import the `Context` to handle commands.
 use serenity::client::Context;
 
@@ -9,6 +13,10 @@ use serenity::{
     model::channel::Message,
     Result as SerenityResult,
 };
+
+use songbird::id::GuildId;
+use songbird::tracks::{PlayMode, TrackQueue};
+use songbird::driver::Driver;
 
 #[group]
 #[commands(deafen, help, join, leave, mute, play, undeafen, unmute)]
@@ -224,9 +232,15 @@ async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
             }
         };
 
-        handler.play_source(source);
+        let message = match &source.metadata.title {
+            None => "Added song to queue".to_owned(),
+            Some(t) => format!("Added {} to queue", t),
+        };
 
-        check_msg(msg.channel_id.say(&ctx.http, "Playing song").await);
+        handler.enqueue_source(source);
+        //handler.queue().current_queue()
+
+        check_msg(msg.channel_id.say(&ctx.http, message).await);
     } else {
         check_msg(
             msg.channel_id
