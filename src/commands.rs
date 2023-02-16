@@ -11,7 +11,7 @@ use serenity::{
 };
 
 #[group]
-#[commands(help, join, leave, mute, play, unmute, queue)]
+#[commands(help, join, leave, mute, play, skip, unmute, queue)]
 struct General;
 
 #[command]
@@ -27,6 +27,7 @@ Commands:
   `join`: Join the voice channel that you are in
   `play <url>`: Add a youtube video to the queue
   `[q]ueue`: Print the songs in the queue
+  `skip`: Skip the currently playing song
   `leave`: Leave voice
   `mute`: Mute the bot
   `unmute`: Unmute the bot",
@@ -245,6 +246,55 @@ async fn queue(ctx: &Context, msg: &Message) -> CommandResult {
             }
         }
 
+        check_msg(msg.channel_id.say(&ctx.http, message).await);
+    } else {
+        check_msg(
+            msg.channel_id
+                .say(&ctx.http, "Not in a voice channel")
+                .await,
+        );
+    }
+
+    Ok(())
+}
+
+#[command]
+#[only_in(guilds)]
+async fn skip(ctx: &Context, msg: &Message) -> CommandResult {
+    let guild = msg.guild(&ctx.cache).unwrap();
+    let guild_id = guild.id;
+
+    let manager = songbird::get(ctx)
+        .await
+        .expect("Songbird Voice client placed in at initialisation.")
+        .clone();
+
+    if let Some(handler_lock) = manager.get(guild_id) {
+        let handler = handler_lock.lock().await;
+        
+        let removed_song = handler.queue().dequeue(0);
+
+        let message: String;
+
+        if let Some(removed_song) = removed_song {
+            removed_song.stop()?;
+            let song_name = match &removed_song.metadata().title {
+                None => "Unnamed Song".to_owned(),
+                Some(t) => t.to_owned(),
+            };
+
+            message = format!("Removed {} from queue", song_name);
+        } else {
+            message = "No song to skip".to_owned();
+        }
+
+        // Play the next song
+        handler.queue().modify_queue(|v| {
+            if let Some(song) = v.get(0) {
+                song.play().unwrap();
+            }
+        });
+        
         check_msg(msg.channel_id.say(&ctx.http, message).await);
     } else {
         check_msg(
