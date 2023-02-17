@@ -11,7 +11,7 @@ tracing-futures = "0.2"
 
 [dependencies.songbird]
 version = "0.3.0"
-features = ["yt-dlp"]
+features = ["builtin-queue", "yt-dlp"]
 
 [dependencies.serenity]
 version = "0.11"
