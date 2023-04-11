@@ -222,7 +222,7 @@ async fn queue(ctx: &Context, msg: &Message) -> CommandResult {
         .clone();
 
     if let Some(handler_lock) = manager.get(guild_id) {
-        let mut handler = handler_lock.lock().await;
+        let handler = handler_lock.lock().await;
         
         let q = handler.queue().current_queue();
         

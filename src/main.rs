@@ -17,7 +17,6 @@ use serenity::{
     framework::StandardFramework,
     model::gateway::Ready,
     prelude::GatewayIntents,
-    Result as SerenityResult,
 };
 
 #[tokio::main]
@@ -47,7 +46,7 @@ async fn main() {
             .map_err(|why| println!("Client ended: {:?}", why));
     });
 
-    tokio::signal::ctrl_c().await;
+    tokio::signal::ctrl_c().await.unwrap();
     println!("Received Ctrl-C, shutting down.");
 }
 
