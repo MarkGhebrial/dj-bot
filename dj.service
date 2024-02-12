@@ -1,0 +1,13 @@
+[Unit]
+Description=Discord bot for playing YouTube videos in voice calls
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+ExecStart=/usr/bin/dj-bot
+
+Environment="DISCORD_TOKEN=replace me"
+
+[Install]
+WantedBy=multi-user.target
